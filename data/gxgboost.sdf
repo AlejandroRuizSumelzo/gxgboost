@@ -1,0 +1,467 @@
+struct XGBLearningParams
+{
+    /**
+     * @brief num_round
+     * number of boosting iterations
+     * default: 10
+     */
+    scalar num_round;
+
+    /**
+     * @brief objective
+     * Specify the learning task and the corresponding learning objective. The objective options are below:
+     *   "reg:linear" --linear regression
+     *   "reg:logistic" --logistic regression
+     *   "binary:logistic" --logistic regression for binary classification, output probability
+     *   "binary:logitraw" --logistic regression for binary classification, output score before logistic transformation
+     *   "gpu:reg:linear", "gpu:reg:logistic", "gpu:binary:logistic", gpu:binary:logitraw"
+     *      --versions of the corresponding objective functions evaluated on the GPU; note that like the GPU histogram
+     *        algorithm, they can only be used when the entire training session uses the same dataset
+     *   "count:poisson" --poisson regression for count data, output mean of poisson distribution
+     *     max_delta_step is set to 0.7 by default in poisson regression (used to safeguard optimization)
+     *   "survival:cox" --Cox regression for right censored survival time data (negative values are considered right censored).
+     *     Note that predictions are returned on the hazard ratio scale (i.e., as HR = exp(marginal_prediction) in the
+     *     proportional hazard function h(t) = h0(t) * HR).
+     *   "multi:softmax" --set XGBoost to do multiclass classification using the softmax objective, you also need to set num_class(number of classes)
+     *   "multi:softprob" --same as softmax, but output a vector of ndata * nclass, which can be further reshaped to ndata,
+     *     nclass matrix. The result contains predicted probability of each data point belonging to each class.
+     *   "rank:pairwise" --set XGBoost to do ranking task by minimizing the pairwise loss
+     *   "reg:gamma" --gamma regression with log-link. Output is a mean of gamma distribution. It might be useful, e.g., for modeling
+     *     insurance claims severity, or for any outcome that might be gamma-distributed
+     *   "reg:tweedie" --Tweedie regression with log-link. It might be useful, e.g., for modeling total loss in insurance, or
+     *     for any outcome that might be Tweedie-distributed.
+     * default: 'reg:linear'
+     */
+    string objective;
+
+    /**
+     * @brief base_score
+     * the initial prediction score of all instances, global bias
+     * for sufficient number of iterations, changing this value will not have too much effect.
+     * deault: 0.5
+     */
+    scalar base_score;
+
+    /**
+     * @brief eval_metric
+     * evaluation metrics for validation data, a default metric will be assigned according to objective (rmse for regression, and error for classification, mean average precision for ranking )
+     * User can add multiple evaluation metrics, for python user, remember to pass the metrics in as list of parameters pairs instead of map, so that latter 'eval_metric' won't override previous one
+     * The choices are listed below:
+     *   "rmse": root mean square error
+     *   "mae": mean absolute error
+     *   "logloss": negative log-likelihood
+     *   "error": Binary classification error rate. It is calculated as #(wrong cases)/#(all cases). For the predictions, the evaluation
+     *     will regard the instances with prediction value larger than 0.5 as positive instances, and the others as negative instances.
+     *   "error@t": a different than 0.5 binary classification threshold value could be specified by providing a numerical value through 't'.
+     *   "merror": Multiclass classification error rate. It is calculated as #(wrong cases)/#(all cases).
+     *   "mlogloss": Multiclass logloss
+     *   "auc": Area under the curve for ranking evaluation.
+     *   "ndcg":Normalized Discounted Cumulative Gain
+     *   "map":Mean average precision
+     *   "ndcg@n","map@n": n can be assigned as an integer to cut off the top positions in the lists for evaluation.
+     *   "ndcg-","map-","ndcg@n-","map@n-": In XGBoost, NDCG and MAP will evaluate the score of a list without any positive samples as 1.
+     *     By adding "-" in the evaluation metric XGBoost will evaluate these score as 0 to be consistent under some conditions. training repeatedly
+     *   "poisson-nloglik": negative log-likelihood for Poisson regression
+     *   "gamma-nloglik": negative log-likelihood for gamma regression
+     *   "cox-nloglik": negative partial log-likelihood for Cox proportional hazards regression
+     *   "gamma-deviance": residual deviance for gamma regression
+     *   "tweedie-nloglik": negative log-likelihood for Tweedie regression (at a specified value of the tweedie_variance_power parameter)
+     * default: according to objective
+     */
+    string eval_metric;
+
+    /**
+     * @brief seed
+     * random number seed.
+     * default: 0
+     */
+    scalar seed;
+
+    /**
+     * @brief tweedie_variance_power
+     * parameter that controls the variance of the Tweedie distribution
+     *   var(y) ~ E(y)^tweedie_variance_power
+     * range: (1,2)
+     *   set closer to 2 to shift towards a gamma distribution
+     *   set closer to 1 to shift towards a Poisson distribution.
+     * default: 1.5
+     */
+    scalar tweedie_variance_power;
+};
+
+struct XGBTreeParams
+{
+    /**
+     * @brief eta
+     * step size shrinkage used in update to prevents overfitting.
+     * After each boosting step, we can directly get the weights of
+     * new features. and eta actually shrinks the feature weights to
+     * make the boosting process more conservative.
+     * range: [0,1]
+     * default: 0.3
+    */
+    scalar eta;
+
+    /**
+     * @brief gamma
+     * minimum loss reduction required to make a further partition
+     * on a leaf node of the tree. The larger, the more conservative
+     * the algorithm will be.
+     * range: [0,∞]
+     * default: 0
+    */
+    scalar gamma;
+
+    /**
+     * @brief max_depth
+     * maximum depth of a tree, increase this value will make the model
+     * more complex / likely to be overfitting. 0 indicates no limit,
+     * limit is required for depth-wise grow policy.
+     * range: [0,∞]
+     * default: 6
+     */
+    scalar max_depth;
+
+    /**
+     * @brief min_child_weight
+     * minimum sum of instance weight (hessian) needed in a child.
+     * If the tree partition step results in a leaf node with the
+     * sum of instance weight less than min_child_weight, then the
+     * building process will give up further partitioning. In linear
+     * regression mode, this simply corresponds to minimum number
+     * of instances needed to be in each node. The larger, the
+     * more conservative the algorithm will be.
+     * range: [0,∞]
+     * default: 1
+     */
+    scalar min_child_weight;
+
+    /**
+     * @brief max_delta_step
+     * Maximum delta step we allow each tree's weight estimation to
+     * be. If the value is set to 0, it means there is no constraint.
+     * If it is set to a positive value, it can help making the update
+     * step more conservative. Usually this parameter is not needed,
+     * but it might help in logistic regression when class is extremely
+     * imbalanced. Set it to value of 1-10 might help control the update
+     * range: [0,∞]
+     * default: 0
+    */
+    scalar max_delta_step;
+
+    /**
+     * @brief subsample
+     * ratio of the training instance. Setting it to 0.5 means that XGBoost randomly collected half of the data instances to grow trees and this will prevent overfitting.
+     * range: [0,1]
+     * default: 1
+     */
+    scalar subsample;
+
+    /**
+     * @brief colsample_bytree
+     * subsample ratio of columns when constructing each tree.
+     * range: (0,1]
+     * default: 1
+     */
+    scalar colsample_bytree;
+
+    /**
+     * @brief colsample_bylevel
+     * subsample ratio of columns for each split, in each level.
+     * range: (0,1]
+     * default: 1
+     */
+    scalar colsample_bylevel;
+
+    /**
+     * @brief lambda
+     * L2 regularization term on weights, increase this value will make model more conservative.
+     * default: 1
+     */
+    scalar lambda;
+
+    /**
+     * @brief alpha
+     * L1 regularization term on weights, increase this value will make model more conservative.
+     * default: 0
+     */
+    scalar alpha;
+
+    /**
+     * @brief tree_method
+     * The tree construction algorithm used in XGBoost(see description in the reference paper)
+     * Distributed and external memory version only support approximate algorithm.
+     * Choices: {'auto', 'exact', 'approx', 'hist', 'gpu_exact', 'gpu_hist'}
+     *   'auto': Use heuristic to choose faster one.
+     *     For small to medium dataset, exact greedy will be used.
+     *     For very large-dataset, approximate algorithm will be chosen.
+     *     Because old behavior is always use exact greedy in single machine, user will get a
+     *     message when approximate algorithm is chosen to notify this choice.
+     *   'exact': Exact greedy algorithm.
+     *   'approx': Approximate greedy algorithm using sketching and histogram.
+     *   'hist': Fast histogram optimized approximate greedy algorithm. It uses some performance
+     *           improvements such as bins caching.
+     *   'gpu_exact': GPU implementation of exact algorithm.
+     *   'gpu_hist': GPU implementation of hist algorithm.
+     * default: 'auto'
+     */
+    string tree_method;
+
+    /**
+     * @brief sketch_eps
+     * This is only used for approximate greedy algorithm.
+     * This roughly translated into O(1 / sketch_eps) number of bins. Compared to directly select
+     * number of bins, this comes with theoretical guarantee with sketch accuracy.
+     * Usually user does not have to tune this. but consider setting to a lower number for more
+     * accurate enumeration.
+     * range: (0, 1)
+     * default: 0.03
+     */
+    scalar sketch_eps;
+
+    /**
+     * @brief scale_pos_weight
+     * Control the balance of positive and negative weights, useful for unbalanced classes.
+     * A typical value to consider: sum(negative cases) / sum(positive cases) See Parameters
+     * Tuning for more discussion. Also see Higgs Kaggle competition demo for examples: R, py1, py2, py3
+     * default: 1
+     */
+    scalar scale_pos_weight;
+
+    /**
+     * @brief updater
+     * A comma separated string defining the sequence of tree updaters to run, providing a modular way to
+     * construct and to modify the trees. This is an advanced parameter that is usually set automatically,
+     * depending on some other parameters. However, it could be also set explicitly by a user. The following
+     * updater plugins exist:
+     *   'grow_colmaker': non-distributed column-based construction of trees.
+     *   'distcol': distributed tree construction with column-based data splitting mode.
+     *   'grow_histmaker': distributed tree construction with row-based data splitting based on global proposal of histogram counting.
+     *   'grow_local_histmaker': based on local histogram counting.
+     *   'grow_skmaker': uses the approximate sketching algorithm.
+     *   'sync': synchronizes trees in all distributed nodes.
+     *   'refresh': refreshes tree's statistics and/or leaf values based on the current data. Note that no random subsampling of data rows is performed.
+     *   'prune': prunes the splits where loss < min_split_loss (or gamma).
+     * In a distributed setting, the implicit updater sequence value would be adjusted as follows:
+     *   'grow_histmaker,prune' when dsplit='row' (or default) and prob_buffer_row == 1 (or default); or when data has multiple sparse pages
+     *   'grow_histmaker,refresh,prune' when dsplit='row' and prob_buffer_row < 1
+     *   'distcol' when dsplit='col'
+     * default: 'grow_colmaker,prune'
+     */
+    string updater;
+
+    /**
+     * @brief refresh_leaf
+     * This is a parameter of the 'refresh' updater plugin. When this flag is true, tree leafs as well as
+     * tree nodes' stats are updated. When it is false, only node stats are updated.
+     * default: 1
+     */
+    scalar refresh_leaf;
+
+    /**
+     * @brief process_type
+     * A type of boosting process to run.
+     * Choices: {'default', 'update'}
+     *   'default': the normal boosting process which creates new trees.
+     *   'update': starts from an existing model and only updates its trees. In each boosting iteration,
+     *             a tree from the initial model is taken, a specified sequence of updater plugins is
+     *             run for that tree, and a modified tree is added to the new model. The new model would
+     *             have either the same or smaller number of trees, depending on the number of boosting
+     *             iteratons performed. Currently, the following built-in updater plugins could be meaningfully
+     *             used with this process type: 'refresh', 'prune'. With 'update', one cannot use updater plugins
+     *             that create new trees.
+     * default: 'default'
+     */
+    string process_type;
+
+    /**
+     * @brief grow_policy
+     * Controls a way new nodes are added to the tree.
+     * Currently supported only if tree_method is set to 'hist'.
+     * Choices: {'depthwise', 'lossguide'}
+     *   'depthwise': split at nodes closest to the root.
+     *   'lossguide': split at nodes with highest loss change.
+     * default: 'depthwise'
+     */
+    string grow_policy;
+
+    /**
+     * @brief max_leaves
+     * Maximum number of nodes to be added. Only relevant for the 'lossguide' grow policy.
+     * default: 0
+     */
+    scalar max_leaves;
+
+    /**
+     * @brief max_bin
+     * This is only used if 'hist' is specified as tree_method.
+     * Maximum number of discrete bins to bucket continuous features.
+     * Increasing this number improves the optimality of splits at the cost of higher computation time.
+     * default: 256
+     */
+    scalar max_bin;
+
+    /**
+     * @brief predictor
+     * The type of predictor algorithm to use. Provides the same results but allows the use of GPU or CPU.
+     *   'cpu_predictor': Multicore CPU prediction algorithm.
+     *   'gpu_predictor': Prediction using GPU. Default for 'gpu_exact' and 'gpu_hist' tree method.
+     *
+     * default: 'cpu_predictor'
+    */
+    string predictor;
+};
+
+struct XGBDartParams
+{
+    struct XGBTreeParams tree;
+
+    /**
+     * @brief sample_type
+     * type of sampling algorithm.
+     *   "uniform": dropped trees are selected uniformly.
+     *   "weighted": dropped trees are selected in proportion to weight.
+     * default: 'uniform'
+     */
+    string sample_type;
+
+    /**
+     * @brief normalize_type
+     * type of normalization algorithm.
+     *   "tree": new trees have the same weight of each of dropped trees.
+     *           weight of new trees are 1 / (k + learning_rate)
+     *           dropped trees are scaled by a factor of k / (k + learning_rate)
+     *   "forest": new trees have the same weight of sum of dropped trees (forest).
+     *           weight of new trees are 1 / (1 + learning_rate)
+     *           dropped trees are scaled by a factor of 1 / (1 + learning_rate)
+     * default: 'tree'
+     */
+    string normalize_type;
+
+    /**
+     * @brief rate_drop
+     * dropout rate (a fraction of previous trees to drop during the dropout).
+     * range: [0.0, 1.0]
+     * default: 0.0
+     */
+    scalar rate_drop;
+
+    /**
+     * @brief one_drop
+     * when this flag is enabled, at least one tree is always dropped during the dropout
+     * (allows Binomial-plus-one or epsilon-dropout from the original DART paper).
+     * default: 0
+     */
+    scalar one_drop;
+
+    /**
+     * @brief skip_drop
+     * Probability of skipping the dropout procedure during a boosting iteration.
+     * If a dropout is skipped, new trees are added in the same manner as gbtree.
+     * Note that non-zero skip_drop has higher priority than rate_drop or one_drop.
+     * range: [0.0, 1.0]
+     * default: 0.0
+     */
+    scalar skip_drop;
+};
+
+struct XGBLinearParams
+{
+    /**
+     * @brief lambda
+     * L2 regularization term on weights, increase this value will make model more conservative.
+     * Normalised to number of training examples.
+     * default: 0
+     */
+    scalar lambda;
+
+    /**
+     * @brief alpha
+     * L1 regularization term on weights, increase this value will make model more conservative.
+     * Normalised to number of training examples.
+     * default: 0
+     */
+    scalar alpha;
+
+    /**
+     * @brief updater
+     * Linear model algorithm
+     *   'shotgun': Parallel coordinate descent algorithm based on shotgun algorithm. Uses 'hogwild' parallelism and
+     *              therefore produces a nondeterministic solution on each run.
+     *   'coord_descent': Ordinary coordinate descent algorithm. Also multithreaded but still produces a deterministic solution.
+     * default: 'shotgun'
+     */
+    string updater;
+};
+
+struct XGBPredictParams
+{
+    /**
+     * @brief output_margin
+     * whether to only predict margin value instead of transformed prediction
+     * default: 0
+     */
+    scalar output_margin;
+
+    /**
+     * @brief ntree_limit
+     * limit number of trees used for prediction, this is only valid for boosted trees
+     *  when the parameter is set to 0, we will use all the trees
+     * default: 0
+     */
+    scalar ntree_limit;
+
+    /**
+     * @brief pred_leaf
+     * whether to only predict the leaf index of each tree in a boosted tree predictor
+     * default: 0/false
+     */
+    scalar pred_leaf;
+
+    /**
+     * @brief pred_contribs
+     * whether to only predict the feature contributions
+     * default: 0/false
+     */
+    scalar pred_contribs;
+
+    /**
+     * @brief approx_contribs
+     * whether to approximate the feature contributions for speed
+     * default: 0/false
+     */
+    scalar approx_contribs;
+
+    /**
+     * @brief pred_interactions
+     * whether to compute the feature pair contributions
+     * default: 0/false
+     */
+    scalar pred_interactions;
+};
+
+struct XGBTree
+{
+    struct XGBLearningParams learning;
+    struct XGBTreeParams params;
+};
+
+struct XGBDart
+{
+    struct XGBLearningParams learning;
+    struct XGBDartParams params;
+};
+
+struct XGBLinear
+{
+    struct XGBLearningParams learning;
+    struct XGBLinearParams params;
+};
+
+struct XGBTrainData
+{
+    matrix labels;
+    matrix data;
+    scalar rows;
+    scalar cols;
+};
