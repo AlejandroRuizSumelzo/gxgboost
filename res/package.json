@@ -1,0 +1,22 @@
+{
+    "author": "Aptech Systems",
+    "deps": [
+    ],
+    "description": "XGBoost wrapper",
+    "dlib": [
+        "libgxgboost.so",
+        "libgxgboost.dylib",
+        "gxgboost.dll"
+    ],
+    "keywords": [
+        "boosting", "random forest"
+    ],
+    "license": "Apache 2.0",
+    "name": "gxgboost",
+    "repo": "",
+    "src": [
+        "gxgboost.sdf",
+        "gxgboost.src"
+    ],
+    "version": "0.1.0"
+}

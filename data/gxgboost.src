@@ -1,4 +1,5 @@
 #include dynargs.dec
+#include gxgboost.sdf
 
 proc (1) = XGBCreateLearningParams();
     struct XGBLearningParams params;
