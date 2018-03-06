@@ -254,7 +254,7 @@ proc (1) = xgbtrain(train_data_, ctl);
     if (type(ctl) != 17);
         errorlog "Params argument must be structure";
         end;
-    end;
+    endif;
 
 #IFMINKERNELVERSION(19)
     if sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBTree");
