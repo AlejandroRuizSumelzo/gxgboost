@@ -254,12 +254,32 @@ proc (1) = xgbtrain(train_data_, ctl);
     if (type(ctl) != 17);
         errorlog "Params argument must be structure";
         end;
-    elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBTree");
+    end;
+
+#IFMINKERNELVERSION(19)
+    if sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBTree");
         retp(_xgb_train_tree(&train, ctl));
     elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBDart");
         retp(_xgb_train_dart(&train, ctl));
     elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBLinear");
         retp(_xgb_train_linear(&train, ctl));
+#else
+    local ctl_strucid;
+    ctl_strucid = sysstate(GAUSS_GET_STRUCID, ctl);
+    struct XGBTree xgbtree_ctl;
+    xgbtree_ctl.learning.num_round = 10;
+    struct XGBDart xgbdart_ctl;
+    xgbdart_ctl.learning.num_round = 10;
+    struct XGBLinear xgblinear_ctl;
+    xgblinear_ctl.learning.num_round = 10;
+
+    if sysstate(GAUSS_GET_STRUCID, xgbtree_ctl) == ctl_strucid;
+        retp(_xgb_train_tree(&train, ctl));
+    elseif sysstate(GAUSS_GET_STRUCID, xgbdart_ctl) == ctl_strucid;
+        retp(_xgb_train_dart(&train, ctl));
+    elseif sysstate(GAUSS_GET_STRUCID, xgblinear_ctl) == ctl_strucid;
+        retp(_xgb_train_linear(&train, ctl));
+#endif
     else;
         errorlog "Unrecognized XGB control structure. Must be of type XGBTreeParams, XGBDartParams, XGBLinearParams";
         end;
@@ -322,3 +342,11 @@ proc (1) = xgbpredict(model, test_data_, ...);
     
     retp(retResults);
 endp;
+
+#IFMINKERNELVERSION(18)
+#else
+proc (1) = __FILE_DIR();
+    retp(getGAUSSHome() $+ "examples/");
+endp;
+#endif
+
