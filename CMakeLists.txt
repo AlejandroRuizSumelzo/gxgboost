@@ -36,10 +36,15 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unknown-pragmas -funroll-loops")
 endif()
 
-add_library(gxgboost SHARED src/gxgboost.cc $<TARGET_OBJECTS:objxgboost>)
+add_library(gxgboost SHARED
+    src/gxgboost.cc
+    xgboost/rabit/src/engine_empty.cc
+    xgboost/rabit/src/c_api.cc
+    $<TARGET_OBJECTS:objxgboost>
+)
 target_compile_definitions(gxgboost PRIVATE gxgboost_EXPORTS)
 target_include_directories(gxgboost PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<INSTALL_INTERFACE:include/gxgboost>)
-target_link_libraries(gxgboost PRIVATE dmlccore rabit)
+target_link_libraries(gxgboost PRIVATE dmlccore)
 
 generate_export_header(gxgboost BASE_NAME GXGBOOST)
 
