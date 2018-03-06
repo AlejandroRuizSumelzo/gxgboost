@@ -6,7 +6,6 @@ include(GenerateExportHeader)
 
 # Find includes in corresponding build directories
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -14,6 +13,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 find_package(OpenMP)
 
 add_subdirectory(xgboost)
+
+msvc_use_static_runtime()
 
 include_directories (
     xgboost/src
@@ -32,14 +33,13 @@ else()
   # Correct error for GCC 5 and cuda
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES")
   # Performance
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -funroll-loops")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unknown-pragmas -funroll-loops")
 endif()
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unknown-pragmas")
 
-add_library(gxgboost SHARED src/gxgboost.cc)
+add_library(gxgboost SHARED src/gxgboost.cc $<TARGET_OBJECTS:objxgboost>)
 target_compile_definitions(gxgboost PRIVATE gxgboost_EXPORTS)
 target_include_directories(gxgboost PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<INSTALL_INTERFACE:include/gxgboost>)
-target_link_libraries(gxgboost PRIVATE xgboost)
+target_link_libraries(gxgboost PRIVATE dmlccore rabit)
 
 generate_export_header(gxgboost BASE_NAME GXGBOOST)
 
