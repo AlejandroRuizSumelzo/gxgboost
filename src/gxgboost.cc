@@ -588,7 +588,9 @@ static int gxgboost_load(Learner *handle,
 {
     common::MemoryFixSizeBuffer fs((void*)buf, len);  // NOLINT(*)
     handle->Load(&fs);
-
+    std::vector<std::pair<std::string, std::string> > cfg;
+    static_cast<dmlc::Stream*>(&fs)->Read(&cfg);
+    handle->Configure(cfg);
     return 0;
 }
 
@@ -647,11 +649,14 @@ static int gxgboost_create(const double* data,
 
 static int gxgboost_save(Learner *handle,
                          double* out_len,
-                         double* out_dptr) {
+                         double* out_dptr,
+                         const std::vector<std::pair<std::string, std::string> > &cfg)
+{
     char *buf = nullptr;
 
     gauss::MemoryBufferStream fo(buf);
     handle->Save(&fo);
+    static_cast<dmlc::Stream*>(&fo)->Write(cfg);
 
     size_t len = getsize(fo.Length(), 1, 1);
     buf = reinterpret_cast<char*>(realloc(buf, len * sizeof(double)));
@@ -771,7 +776,7 @@ static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg
         version += 1;
     }
 
-    gxgboost_save(learner.get(), booster->model.size, booster->model.data);
+    gxgboost_save(learner.get(), booster->model.size, booster->model.data, cfg);
 
     double elapsed = dmlc::GetTime() - start;
     LOG(CONSOLE) << "update end, " << elapsed << " sec in all";
