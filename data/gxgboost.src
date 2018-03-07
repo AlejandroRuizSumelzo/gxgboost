@@ -106,12 +106,10 @@ proc (6) = _xgb_split_learning_params(struct XGBLearningParams params);
     params.eval_metric, params.seed, params.tweedie_variance_power);
 endp;
 
-proc (1) = _xgb_train_tree(struct XGBTrainData *train, struct XGBTree ctl);
-    local inputTrainData, inputTrainRows, inputTrainCols, inputTrainLabels;
-    inputTrainData = train->data;
-    inputTrainRows = train->rows;
-    inputTrainCols = train->cols;
-    inputTrainLabels = train->labels;
+proc (1) = _xgb_train_tree(y, x, struct XGBTree ctl);
+    local inputTrainRows, inputTrainCols;
+    inputTrainRows = rows(x);
+    inputTrainCols = cols(x);
     
     local dloModelPtr, dloModelRows, retModel;
     clear dloModelPtr, dloModelRows;
@@ -133,7 +131,7 @@ proc (1) = _xgb_train_tree(struct XGBTrainData *train, struct XGBTree ctl);
     
     dllcall -v gxgboost_train_tree(
         // struct InputData
-        inputTrainData, inputTrainRows, inputTrainCols, inputTrainLabels,
+        x, inputTrainRows, inputTrainCols, y,
         // struct VectorData (output)
         dloModelPtr, dloModelRows,
         // learning params
@@ -152,12 +150,10 @@ proc (1) = _xgb_train_tree(struct XGBTrainData *train, struct XGBTree ctl);
     retp(retModel);
 endp;
 
-proc (1) = _xgb_train_dart(struct XGBTrainData *train, struct XGBDart ctl);
-    local inputTrainData, inputTrainRows, inputTrainCols, inputTrainLabels;
-    inputTrainData = train->data;
-    inputTrainRows = train->rows;
-    inputTrainCols = train->cols;
-    inputTrainLabels = train->labels;
+proc (1) = _xgb_train_dart(y, x, struct XGBDart ctl);
+    local inputTrainRows, inputTrainCols;
+    inputTrainRows = rows(x);
+    inputTrainCols = cols(x);
     
     local dloModelPtr, dloModelRows, retModel;
     clear dloModelPtr, dloModelRows;
@@ -185,7 +181,7 @@ proc (1) = _xgb_train_dart(struct XGBTrainData *train, struct XGBDart ctl);
     
     dllcall -v gxgboost_train_dart(
         // struct InputData
-        inputTrainData, inputTrainRows, inputTrainCols, inputTrainLabels,
+        x, inputTrainRows, inputTrainCols, y,
         // struct VectorData (output)
         dloModelPtr, dloModelRows,
         // learning params
@@ -206,12 +202,10 @@ proc (1) = _xgb_train_dart(struct XGBTrainData *train, struct XGBDart ctl);
     retp(retModel);
 endp;
 
-proc (1) = _xgb_train_linear(struct XGBTrainData *train, struct XGBLinear ctl);
-    local inputTrainData, inputTrainRows, inputTrainCols, inputTrainLabels;
-    inputTrainData = train->data;
-    inputTrainRows = train->rows;
-    inputTrainCols = train->cols;
-    inputTrainLabels = train->labels;
+proc (1) = _xgb_train_linear(y, x, struct XGBLinear ctl);
+    local inputTrainRows, inputTrainCols;
+    inputTrainRows = rows(x);
+    inputTrainCols = cols(x);
     
     local dloModelPtr, dloModelRows, retModel;
     clear dloModelPtr, dloModelRows;
@@ -227,7 +221,7 @@ proc (1) = _xgb_train_linear(struct XGBTrainData *train, struct XGBLinear ctl);
     
     dllcall -v gxgboost_train_tree(
         // struct InputData
-        inputTrainData, inputTrainRows, inputTrainCols, inputTrainLabels,
+        x, inputTrainRows, inputTrainCols, y,
         // struct VectorData (output)
         dloModelPtr, dloModelRows,
         // learning params
@@ -243,14 +237,17 @@ proc (1) = _xgb_train_linear(struct XGBTrainData *train, struct XGBLinear ctl);
     retp(retModel);
 endp;
 
-proc (1) = xgbtrain(train_data_, ctl);
+proc (1) = xgbtrain(y, x, ctl);
     dlibrary -a gxgboost;
-    struct XGBTrainData train;
-    train.labels = train_data_[.,1];
-    train.data = delcols(train_data_, 1);
-    train.rows = rows(train_data_);
-    train.cols = cols(train_data_) - 1;
-    
+
+    if rows(x) != rows(y);
+        errorlog "Rows of y "$+ntos(rows(y))$+") and x ("$+ntos(rows(x))$+") must match";
+        end;
+    elseif cols(y) > 1;
+        errorlog "y must be a row vector";
+        end;
+    endif;
+
     if (type(ctl) != 17);
         errorlog "Params argument must be structure";
         end;
@@ -258,11 +255,11 @@ proc (1) = xgbtrain(train_data_, ctl);
 
 #IFMINKERNELVERSION(19)
     if sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBTree");
-        retp(_xgb_train_tree(&train, ctl));
+        retp(_xgb_train_tree(y, x, ctl));
     elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBDart");
-        retp(_xgb_train_dart(&train, ctl));
+        retp(_xgb_train_dart(y, x, ctl));
     elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBLinear");
-        retp(_xgb_train_linear(&train, ctl));
+        retp(_xgb_train_linear(y, x, ctl));
 #else
     local ctl_strucid;
     ctl_strucid = sysstate(GAUSS_GET_STRUCID, ctl);
@@ -274,11 +271,11 @@ proc (1) = xgbtrain(train_data_, ctl);
     xgblinear_ctl.learning.num_round = 10;
 
     if sysstate(GAUSS_GET_STRUCID, xgbtree_ctl) == ctl_strucid;
-        retp(_xgb_train_tree(&train, ctl));
+        retp(_xgb_train_tree(y, x, ctl));
     elseif sysstate(GAUSS_GET_STRUCID, xgbdart_ctl) == ctl_strucid;
-        retp(_xgb_train_dart(&train, ctl));
+        retp(_xgb_train_dart(y, x, ctl));
     elseif sysstate(GAUSS_GET_STRUCID, xgblinear_ctl) == ctl_strucid;
-        retp(_xgb_train_linear(&train, ctl));
+        retp(_xgb_train_linear(y, x, ctl));
 #endif
     else;
         errorlog "Unrecognized XGB control structure. Must be of type XGBTreeParams, XGBDartParams, XGBLinearParams";
@@ -288,13 +285,11 @@ proc (1) = xgbtrain(train_data_, ctl);
     retp(0);
 endp;
 
-proc (1) = xgbpredict(model, test_data_, ...);
+proc (1) = xgbpredict(model, x, ...);
     dlibrary -a gxgboost;
-    local test_labels, test_data, test_data_rows, test_data_cols;
-    test_labels = test_data_[.,1];
-    test_data = delcols(test_data_, 1);
-    test_data_rows = rows(test_data);
-    test_data_cols = cols(test_data);
+    local test_data_rows, test_data_cols;
+    test_data_rows = rows(x);
+    test_data_cols = cols(x);
     
     local model_size;
     model_size = rows(model);
@@ -326,7 +321,7 @@ proc (1) = xgbpredict(model, test_data_, ...);
     
     dllcall -v gxgboost_predict(
     // struct InputData
-    test_data, test_data_rows, test_data_cols, test_labels, 
+    x, test_data_rows, test_data_cols,
     // struct VectorData (input model)
     model, model_size,
     // struct VectorData (output results)

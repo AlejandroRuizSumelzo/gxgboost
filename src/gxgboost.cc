@@ -87,7 +87,6 @@ struct InputData
     double *data;
     double *rows;
     double *cols;
-    double *labels;
 };
 
 struct VectorData
@@ -498,6 +497,7 @@ struct LinearBoosterTrainParams
 struct BoosterTrainInput
 {
     struct InputData input;
+    double *labels;
     struct VectorData model;
     struct LearningTaskParams learning;
 };
@@ -681,9 +681,6 @@ static DMatrix* gxgboost_create_data(const struct InputData *input)
                     missing,
                     &dtrain_p);
 
-    if (input->labels)
-        dtrain_p->info().SetInfo("label", input->labels, kDouble, static_cast<size_t>(*input->rows));
-
     return dtrain_p;
 }
 
@@ -753,6 +750,8 @@ static void gxgboost_configure_linear(std::vector<std::pair<std::string, std::st
 static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg, struct BoosterTrainInput *booster)
 {
     std::shared_ptr<DMatrix> dtrain(gxgboost_create_data(&booster->input));
+    dtrain->info().SetInfo("label", booster->labels, kDouble, static_cast<size_t>(*booster->input.rows));
+
     std::vector<std::shared_ptr<DMatrix> > cache_mats;
     cache_mats.emplace_back(dtrain);
     std::unique_ptr<Learner> learner(Learner::Create(cache_mats));

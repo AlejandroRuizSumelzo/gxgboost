@@ -23,8 +23,8 @@ ctl.params.max_depth = 3;
 ctl.learning.num_round = 2;
 ctl.learning.objective = "binary:logistic";
 
-model = xgbtrain(train_data, ctl);
-print xgbpredict(model, test_data);
+model = xgbtrain(train_data[.,1], delcols(train_data, 1), ctl);
+print xgbpredict(model, delcols(test_data, 1));
 
 proc (2) = nfolds(data, test_percentage);
     local selection, n, chunk, train_data, test_data;

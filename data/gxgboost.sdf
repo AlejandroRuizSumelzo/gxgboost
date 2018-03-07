@@ -449,10 +449,3 @@ struct XGBLinear {
     struct XGBLearningParams learning;
     struct XGBLinearParams params;
 };
-
-struct XGBTrainData {
-    matrix labels;
-    matrix data;
-    scalar rows;
-    scalar cols;
-};
