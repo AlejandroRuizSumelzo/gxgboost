@@ -1,10 +1,9 @@
 /*!
- * Copyright 2014 by Contributors
- * \file cli_main.cc
- * \brief The command line interface program of xgboost.
- *  This file is not included in dynamic library.
+ * Copyright 2018 by Aptech Systems, Inc.
+ * \file gxgboost.cc
+ * \brief GAUSS wrapper for XGBoost based on cli_main.cc
  */
-// Copyright 2014 by Contributors
+// Copyright 2018 by Aptech Systems, Inc
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_DEPRECATE
 #define NOMINMAX
@@ -32,6 +31,61 @@
 #endif
 
 #define getsize(R,C,S) ((R)*(C)*(S)/(size_t)8 + ( ((R)*(C)*(S))%(size_t)8 != (size_t)0 ) )
+
+extern "C" {
+extern void ProgramFmtErrorOutput( struct formatted_error *error_struct );
+extern void ProgramOutput( char *string );
+}
+
+namespace rabit {
+namespace utils {
+
+inline void _gs_print(const char *fmt, ...) {
+    char buf[2048];
+    va_list args;
+    va_start(args, fmt);
+    vsprintf(buf, fmt, args);
+    va_end(args);
+    ProgramOutput(buf);
+}
+
+/*!
+ * \brief handling of Assert error, caused by inappropriate input
+ * \param msg error message
+ */
+inline void HandleAssertError(const char *msg) {
+    _gs_print("AssertError:%s\n", msg);
+}
+/*!
+ * \brief handling of Check error, caused by inappropriate input
+ * \param msg error message
+ */
+inline void HandleCheckError(const char *msg) {
+    _gs_print("%s\n", msg);
+}
+inline void HandlePrint(const char *msg) {
+    _gs_print("%s\n", msg);
+}
+inline void HandleLogPrint(const char *msg) {
+    _gs_print("%s\n", msg);
+}
+}
+}
+
+namespace dmlc {
+void CustomLogMessage::Log(const std::string& msg) {
+    rabit::utils::_gs_print("%s\n", msg.c_str());
+}
+}  // namespace dmlc
+
+namespace xgboost {
+ConsoleLogger::~ConsoleLogger() {
+    dmlc::CustomLogMessage::Log(log_stream_.str());
+}
+TrackerLogger::~TrackerLogger() {
+    dmlc::CustomLogMessage::Log(log_stream_.str());
+}
+}  // namespace xgboost
 
 namespace xgboost {
 namespace gauss {
@@ -184,6 +238,16 @@ struct LearningTaskParams
      * default: 1.5
      */
     double *tweedie_variance_power;
+
+    /**
+     * @brief verbose
+     * parameter that controls the verbosity of output
+     *  0 - silent
+     *  1 - print evaluation metric
+     *  2 - also print tree information
+     * default: 0
+     */
+    double *verbose;
 };
 
 struct TreeBoosterTrainParams
@@ -690,6 +754,7 @@ static void gxgboost_configure_learning(std::vector<std::pair<std::string, std::
     cfg.push_back(std::make_pair("objective", std::string(params->objective)));
     cfg.push_back(std::make_pair("base_score", convert_arg<>(params->base_score)));
     cfg.push_back(std::make_pair("seed", convert_arg<int>(params->seed)));
+    cfg.push_back(std::make_pair("silent", std::to_string(static_cast<int>(*params->verbose < 2.0))));
 
     if (strlen(params->eval_metric)) {
         cfg.push_back(std::make_pair("eval_metric", std::string(params->eval_metric)));
@@ -763,22 +828,41 @@ static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg
     learner->Configure(cfg);
     learner->InitModel();
 
+    std::vector<DMatrix*> eval_datasets{dtrain.get()};
+    std::vector<std::string> eval_data_names{std::string("train")};
+
+    int verbose = static_cast<int>(*booster->learning.verbose);
+
     // start training.
-    const double start = dmlc::GetTime();
+
     for (int i = version / 2; i < static_cast<int>(*booster->learning.num_round); ++i) {
         if (version % 2 == 0) {
-            LOG(CONSOLE) << "boosting round " << i << ", " << (dmlc::GetTime() - start) << " sec elapsed";
             learner->UpdateOneIter(i, dtrain.get());
             version += 1;
         }
-//        std::string res = learner->EvalOneIter(i, eval_datasets, eval_data_names);
+
+        std::string res = learner->EvalOneIter(i, eval_datasets, eval_data_names);
+
+        if (rabit::IsDistributed()) {
+            if (rabit::GetRank() == 0) {
+                LOG(TRACKER) << res;
+            }
+        } else {
+            if (verbose > 0) {
+                LOG(CONSOLE) << res;
+            }
+        }
+
+        if (learner->AllowLazyCheckPoint()) {
+            rabit::LazyCheckPoint(learner.get());
+        } else {
+            rabit::CheckPoint(learner.get());
+        }
+
         version += 1;
     }
 
     gxgboost_save(learner.get(), booster->model.size, booster->model.data, cfg);
-
-    double elapsed = dmlc::GetTime() - start;
-    LOG(CONSOLE) << "update end, " << elapsed << " sec in all";
 
     return 0;
 }

@@ -1,4 +1,5 @@
 new;
+cls;
 
 library gxgboost;
 
@@ -20,11 +21,13 @@ ctl.params.gamma = 1.0;
 ctl.params.min_child_weight = 1;
 ctl.params.max_depth = 3;
 
-ctl.learning.num_round = 2;
+ctl.learning.num_round = 10;
 ctl.learning.objective = "binary:logistic";
+ctl.learning.verbose = 2;
 
-model = xgbtrain(train_data[.,1], delcols(train_data, 1), ctl);
-print xgbpredict(model, delcols(test_data, 1));
+struct XGBModel model;
+model = xgbFit(train_data[.,1], delcols(train_data, 1), ctl);
+pred = xgbPredict(model, delcols(test_data, 1));
 
 proc (2) = nfolds(data, test_percentage);
     local selection, n, chunk, train_data, test_data;

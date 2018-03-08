@@ -86,6 +86,16 @@ struct XGBLearningParams {
      * default: 1.5
      */
     scalar tweedie_variance_power;
+    
+    /**
+     * @brief verbose
+     * parameter that controls the verbosity of output
+     *  0 - silent
+     *  1 - print evaluation metric
+     *  2 - also print tree information
+     * default: 0
+     */
+    scalar verbose;
 };
 
 struct XGBTreeParams {
@@ -448,4 +458,8 @@ struct XGBDart {
 struct XGBLinear {
     struct XGBLearningParams learning;
     struct XGBLinearParams params;
+};
+
+struct XGBModel {
+    matrix model;
 };

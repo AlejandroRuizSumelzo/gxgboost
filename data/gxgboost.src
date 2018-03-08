@@ -9,6 +9,7 @@ proc (1) = XGBCreateLearningParams();
     params.eval_metric = "";
     params.seed = 0;
     params.tweedie_variance_power = 1.5;
+    params.verbose = 0;
     retp(params);
 endp;
 
@@ -101,9 +102,10 @@ proc (20) = _xgb_split_tree_params(struct XGBTreeParams params);
     params.predictor);
 endp;
 
-proc (6) = _xgb_split_learning_params(struct XGBLearningParams params);
+proc (7) = _xgb_split_learning_params(struct XGBLearningParams params);
     retp(params.num_round, params.objective, params.base_score, 
-    params.eval_metric, params.seed, params.tweedie_variance_power);
+    params.eval_metric, params.seed, params.tweedie_variance_power,
+    params.verbose);
 endp;
 
 proc (1) = _xgb_train_tree(y, x, struct XGBTree ctl);
@@ -114,10 +116,9 @@ proc (1) = _xgb_train_tree(y, x, struct XGBTree ctl);
     local dloModelPtr, dloModelRows, retModel;
     clear dloModelPtr, dloModelRows;
     
-//    struct XGBTree ctl;
-    local num_round, objective, base_score, eval_metric, seed, tweedie_variance_power;
-    { num_round, objective, base_score, 
-    eval_metric, seed, tweedie_variance_power } = _xgb_split_learning_params(ctl.learning);
+    local num_round, objective, base_score, eval_metric, seed, tweedie_variance_power, verbose;
+    { num_round, objective, base_score, eval_metric, seed, 
+    tweedie_variance_power, verbose } = _xgb_split_learning_params(ctl.learning);
     
     local eta, gamma_, max_depth, min_child_weight, max_delta_step, subsample,
     colsample_bytree, colsample_bylevel, lambda, alpha, tree_method, sketch_eps,
@@ -135,7 +136,7 @@ proc (1) = _xgb_train_tree(y, x, struct XGBTree ctl);
         // struct VectorData (output)
         dloModelPtr, dloModelRows,
         // learning params
-        num_round, objective, base_score, eval_metric, seed, tweedie_variance_power,
+        num_round, objective, base_score, eval_metric, seed, tweedie_variance_power, verbose,
         // tree params
         eta, gamma_, max_depth, min_child_weight, max_delta_step, subsample,
             colsample_bytree, colsample_bylevel, lambda, alpha, tree_method, 
@@ -158,9 +159,9 @@ proc (1) = _xgb_train_dart(y, x, struct XGBDart ctl);
     local dloModelPtr, dloModelRows, retModel;
     clear dloModelPtr, dloModelRows;
     
-    local num_round, objective, base_score, eval_metric, seed, tweedie_variance_power;
-    { num_round, objective, base_score, 
-    eval_metric, seed, tweedie_variance_power } = _xgb_split_learning_params(ctl.learning);
+    local num_round, objective, base_score, eval_metric, seed, tweedie_variance_power, verbose;
+    { num_round, objective, base_score, eval_metric, seed, 
+    tweedie_variance_power, verbose } = _xgb_split_learning_params(ctl.learning);
     
     local eta, gamma_, max_depth, min_child_weight, max_delta_step, subsample,
     colsample_bytree, colsample_bylevel, lambda, alpha, tree_method, sketch_eps,
@@ -185,7 +186,7 @@ proc (1) = _xgb_train_dart(y, x, struct XGBDart ctl);
         // struct VectorData (output)
         dloModelPtr, dloModelRows,
         // learning params
-        num_round, objective, base_score, eval_metric, seed, tweedie_variance_power,
+        num_round, objective, base_score, eval_metric, seed, tweedie_variance_power, verbose,
         // tree params
         eta, gamma_, max_depth, min_child_weight, max_delta_step, subsample,
             colsample_bytree, colsample_bylevel, lambda, alpha, tree_method, 
@@ -210,9 +211,9 @@ proc (1) = _xgb_train_linear(y, x, struct XGBLinear ctl);
     local dloModelPtr, dloModelRows, retModel;
     clear dloModelPtr, dloModelRows;
     
-    local num_round, objective, base_score, eval_metric, seed, tweedie_variance_power;
-    { num_round, objective, base_score, 
-    eval_metric, seed, tweedie_variance_power } = _xgb_split_learning_params(ctl.learning);
+    local num_round, objective, base_score, eval_metric, seed, tweedie_variance_power, verbose;
+    { num_round, objective, base_score, eval_metric, seed, 
+    tweedie_variance_power, verbose } = _xgb_split_learning_params(ctl.learning);
     
     local lambda, alpha, updater;
     lambda = ctl.params.lambda;
@@ -225,7 +226,7 @@ proc (1) = _xgb_train_linear(y, x, struct XGBLinear ctl);
         // struct VectorData (output)
         dloModelPtr, dloModelRows,
         // learning params
-        num_round, objective, base_score, eval_metric, seed, tweedie_variance_power,
+        num_round, objective, base_score, eval_metric, seed, tweedie_variance_power, verbose,
         // linear params
         lambda, alpha, updater
     );
@@ -237,14 +238,14 @@ proc (1) = _xgb_train_linear(y, x, struct XGBLinear ctl);
     retp(retModel);
 endp;
 
-proc (1) = xgbtrain(y, x, ctl);
+proc (1) = xgbFit(labels, data, ctl);
     dlibrary -a gxgboost;
 
-    if rows(x) != rows(y);
-        errorlog "Rows of y "$+ntos(rows(y))$+") and x ("$+ntos(rows(x))$+") must match";
+    if rows(data) != rows(labels);
+        errorlog "Rows of labels ("$+ntos(rows(labels))$+") and data ("$+ntos(rows(data))$+") must match";
         end;
-    elseif cols(y) > 1;
-        errorlog "y must be a row vector";
+    elseif cols(labels) > 1;
+        errorlog "labels must be a row vector";
         end;
     endif;
 
@@ -252,14 +253,16 @@ proc (1) = xgbtrain(y, x, ctl);
         errorlog "Params argument must be structure";
         end;
     endif;
+    
+    struct XGBModel ret;
 
 #IFMINKERNELVERSION(19)
     if sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBTree");
-        retp(_xgb_train_tree(y, x, ctl));
+        ret.model = _xgb_train_tree(labels, data, ctl);
     elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBDart");
-        retp(_xgb_train_dart(y, x, ctl));
+        ret.model = xgb_train_dart(labels, data, ctl);
     elseif sysstate(ctl, IS_STRUCTYPE_MATCH, "XGBLinear");
-        retp(_xgb_train_linear(y, x, ctl));
+        ret.model = xgb_train_linear(labels, data, ctl);
 #else
     local ctl_strucid;
     ctl_strucid = sysstate(GAUSS_GET_STRUCID, ctl);
@@ -271,28 +274,29 @@ proc (1) = xgbtrain(y, x, ctl);
     xgblinear_ctl.learning.num_round = 10;
 
     if sysstate(GAUSS_GET_STRUCID, xgbtree_ctl) == ctl_strucid;
-        retp(_xgb_train_tree(y, x, ctl));
+        ret.model = _xgb_train_tree(labels, data, ctl);
     elseif sysstate(GAUSS_GET_STRUCID, xgbdart_ctl) == ctl_strucid;
-        retp(_xgb_train_dart(y, x, ctl));
+        ret.model = _xgb_train_dart(labels, data, ctl);
     elseif sysstate(GAUSS_GET_STRUCID, xgblinear_ctl) == ctl_strucid;
-        retp(_xgb_train_linear(y, x, ctl));
+        ret.model = _xgb_train_linear(labels, data, ctl);
 #endif
     else;
         errorlog "Unrecognized XGB control structure. Must be of type XGBTreeParams, XGBDartParams, XGBLinearParams";
         end;
     endif;
     
-    retp(0);
+    retp(ret);
 endp;
 
-proc (1) = xgbpredict(model, x, ...);
+proc (1) = xgbPredict(struct XGBModel model, data, ...);
     dlibrary -a gxgboost;
     local test_data_rows, test_data_cols;
-    test_data_rows = rows(x);
-    test_data_cols = cols(x);
+    test_data_rows = rows(data);
+    test_data_cols = cols(data);
     
-    local model_size;
-    model_size = rows(model);
+    local model_data, model_size;
+    model_data = model.model;
+    model_size = rows(model_data);
     
     local dloResultsPtr, dloResultsRows, retResults;
     clear dloResultsPtr, dloResultsRows;
@@ -321,9 +325,9 @@ proc (1) = xgbpredict(model, x, ...);
     
     dllcall -v gxgboost_predict(
     // struct InputData
-    x, test_data_rows, test_data_cols,
+    data, test_data_rows, test_data_cols,
     // struct VectorData (input model)
-    model, model_size,
+    model_data, model_size,
     // struct VectorData (output results)
     dloResultsPtr, dloResultsRows,
     // predict params
