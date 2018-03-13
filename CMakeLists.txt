@@ -15,10 +15,15 @@ find_package(OpenMP)
 add_definitions(
     -DDMLC_LOG_BEFORE_THROW=0
     -DDMLC_DISABLE_STDIN=1
-    -DDMLC_LOG_CUSTOMIZE=1
-    -DRABIT_CUSTOMIZE_MSG_
-    -DXGBOOST_CUSTOMIZE_LOGGER=1
 )
+
+if(NOT WIN32)
+    add_definitions(
+        -DDMLC_LOG_CUSTOMIZE=1
+        -DRABIT_CUSTOMIZE_MSG_
+        -DXGBOOST_CUSTOMIZE_LOGGER=1
+    )
+endif()
 
 add_subdirectory(xgboost)
 
@@ -26,6 +31,7 @@ msvc_use_static_runtime()
 
 set_target_properties(xgboost PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
 set_target_properties(runxgboost PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
+set_target_properties(rabit PROPERTIES EXCLUDE_FROM_ALL 1 EXCLUDE_FROM_DEFAULT_BUILD 1)
 
 include_directories (
     xgboost/src

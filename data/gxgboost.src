@@ -297,6 +297,11 @@ proc (1) = xgbPredict(struct XGBModel model, data, ...);
     local model_data, model_size;
     model_data = model.model;
     model_size = rows(model_data);
+
+    if not model_size;
+        errorlog "Please train a model first.";
+        end;
+    endif;
     
     local dloResultsPtr, dloResultsRows, retResults;
     clear dloResultsPtr, dloResultsRows;

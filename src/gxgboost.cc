@@ -32,10 +32,8 @@
 
 #define getsize(R,C,S) ((R)*(C)*(S)/(size_t)8 + ( ((R)*(C)*(S))%(size_t)8 != (size_t)0 ) )
 
-extern "C" {
-extern void ProgramFmtErrorOutput( struct formatted_error *error_struct );
-extern void ProgramOutput( char *string );
-}
+#ifndef _WIN32
+extern "C" void ProgramOutput( char *string );
 
 namespace rabit {
 namespace utils {
@@ -86,6 +84,7 @@ TrackerLogger::~TrackerLogger() {
     dmlc::CustomLogMessage::Log(log_stream_.str());
 }
 }  // namespace xgboost
+#endif
 
 namespace xgboost {
 namespace gauss {
