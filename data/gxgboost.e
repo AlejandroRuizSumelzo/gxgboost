@@ -15,7 +15,7 @@ data[.,1] = (data[.,1] .== 2);
 { train_data, test_data } = nfolds(data, 0.2);
 
 struct XGBTree ctl;
-ctl = xgbcreatectl("tree");
+ctl = xgbCreateCtl("tree");
 ctl.params.eta = 1.0;
 ctl.params.gamma = 1.0;
 ctl.params.min_child_weight = 1;
@@ -26,7 +26,7 @@ ctl.learning.objective = "binary:logistic";
 ctl.learning.verbose = 2;
 
 struct XGBModel model;
-model = xgbFit(train_data[.,1], delcols(train_data, 1), ctl);
+model = xgbTreeFit(train_data[.,1], delcols(train_data, 1), ctl);
 pred = xgbPredict(model, delcols(test_data, 1));
 
 proc (2) = nfolds(data, test_percentage);

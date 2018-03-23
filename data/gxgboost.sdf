@@ -1,4 +1,4 @@
-struct XGBLearningParams {
+struct xgbLearningParams {
     /**
      * @brief num_round
      * number of boosting iterations
@@ -98,7 +98,7 @@ struct XGBLearningParams {
     scalar verbose;
 };
 
-struct XGBTreeParams {
+struct xgbTreeParams {
     /**
      * @brief eta
      * step size shrinkage used in update to prevents overfitting.
@@ -320,8 +320,8 @@ struct XGBTreeParams {
     string predictor;
 };
 
-struct XGBDartParams {
-    struct XGBTreeParams tree;
+struct xgbDartParams {
+    struct xgbTreeParams tree;
 
     /**
      * @brief sample_type
@@ -372,7 +372,7 @@ struct XGBDartParams {
     scalar skip_drop;
 };
 
-struct XGBLinearParams {
+struct xgbLinearParams {
     /**
      * @brief lambda
      * L2 regularization term on weights, increase this value will make model more conservative.
@@ -400,7 +400,7 @@ struct XGBLinearParams {
     string updater;
 };
 
-struct XGBPredictParams {
+struct xgbPredictParams {
     /**
      * @brief output_margin
      * whether to only predict margin value instead of transformed prediction
@@ -445,21 +445,21 @@ struct XGBPredictParams {
     scalar pred_interactions;
 };
 
-struct XGBTree {
-    struct XGBLearningParams learning;
-    struct XGBTreeParams params;
+struct xgbTree {
+    struct xgbLearningParams learning;
+    struct xgbTreeParams params;
 };
 
-struct XGBDart {
-    struct XGBLearningParams learning;
-    struct XGBDartParams params;
+struct xgbDart {
+    struct xgbLearningParams learning;
+    struct xgbDartParams params;
 };
 
-struct XGBLinear {
-    struct XGBLearningParams learning;
-    struct XGBLinearParams params;
+struct xgbLinear {
+    struct xgbLearningParams learning;
+    struct xgbLinearParams params;
 };
 
-struct XGBModel {
+struct xgbModel {
     matrix model;
 };

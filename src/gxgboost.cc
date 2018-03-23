@@ -19,6 +19,7 @@
 #include <cstdio>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 #include "./common/sync.h"
 #include "./common/config.h"
 #include "./common/math.h"
@@ -821,6 +822,12 @@ static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg
     std::unique_ptr<Learner> learner(Learner::Create(cache_mats));
 
     gxgboost_configure_learning(cfg, &booster->learning);
+
+    if (std::string(booster->learning.objective) == std::string("multi:softmax")) {
+        std::vector<bst_float> num_class;
+        std::unique_copy(dtrain->info().labels.cbegin(), dtrain->info().labels.cend(), std::back_inserter(num_class));
+        cfg.push_back(std::make_pair("num_class", std::to_string(num_class.size())));
+    }
 
     int version = 0;
 
