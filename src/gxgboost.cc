@@ -823,7 +823,9 @@ static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg
 
     gxgboost_configure_learning(cfg, &booster->learning);
 
-    if (std::string(booster->learning.objective) == std::string("multi:softmax")) {
+    const std::string objective(booster->learning.objective);
+
+    if (objective == std::string("multi:softmax") || objective == std::string("multi:softprob")) {
         std::vector<bst_float> num_class;
         std::unique_copy(dtrain->info().labels.cbegin(), dtrain->info().labels.cend(), std::back_inserter(num_class));
         cfg.push_back(std::make_pair("num_class", std::to_string(num_class.size())));
