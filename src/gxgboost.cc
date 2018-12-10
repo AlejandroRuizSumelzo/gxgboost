@@ -22,7 +22,17 @@
 #include <algorithm>
 #include "./common/sync.h"
 #include "./common/config.h"
+
+#ifdef XGBOOST_STRICT_R_MODE
+#define XGBOOST_STRCT_R_MODE_OLD XGBOOST_STRICT_R_MODE
+#undef XGBOOST_STRICT_R_MODE
+#define XGBOOST_STRICT_R_MODE 0
 #include "./common/math.h"
+#undef XGBOOST_STRICT_R_MODE
+#define XGBOOST_STRICT_R_MODE XGBOOST_STRCT_R_MODE_OLD
+#else
+#include "./common/math.h"
+#endif
 #include "./common/io.h"
 #include "./data/simple_csr_source.h"
 #include "gxgboost_export.h"
@@ -667,47 +677,28 @@ static int gxgboost_create(const double* data,
     std::unique_ptr<data::SimpleCSRSource> source(new data::SimpleCSRSource());
 
     data::SimpleCSRSource& mat = *source;
-    mat.row_ptr_.resize(1+nrow);
+
     bool nan_missing = common::CheckNAN<double>(missing);
-    mat.info.num_row = nrow;
-    mat.info.num_col = ncol;
-    const double* data0 = data;
-
-    // count elements for sizing data
-    data = data0;
-    for (xgboost::bst_ulong i = 0; i < nrow; ++i, data += ncol) {
-        xgboost::bst_ulong nelem = 0;
-        for (xgboost::bst_ulong j = 0; j < ncol; ++j) {
-            if (common::CheckNAN<double>(data[j])) {
-                CHECK(nan_missing)
-                        << "There are NAN in the matrix, however, you did not set missing=NAN";
-            } else {
-                if (nan_missing || data[j] != missing) {
-                    ++nelem;
-                }
+    auto& offset_vec = mat.page_.offset.HostVector();
+    auto& data_vec = mat.page_.data.HostVector();
+    offset_vec.reserve(1+nrow);
+    data_vec.reserve(nrow);
+    offset_vec.resize(1);
+    offset_vec[0] = 0;
+    for (size_t i = 1; i < nrow; ++i, data += ncol) {
+        for (size_t j = 0; j < ncol; ++j) {
+            if (!common::CheckNAN(data[j]) && (nan_missing || data[j] != missing)) {
+                // automatically skip nan.
+                data_vec.emplace_back(Entry(j, data[j]));
             }
         }
-        mat.row_ptr_[i+1] = mat.row_ptr_[i] + nelem;
-    }
-    mat.row_data_.resize(mat.row_data_.size() + mat.row_ptr_.back());
-
-    data = data0;
-    for (xgboost::bst_ulong i = 0; i < nrow; ++i, data += ncol) {
-        xgboost::bst_ulong matj = 0;
-        for (xgboost::bst_ulong j = 0; j < ncol; ++j) {
-            if (common::CheckNAN<double>(data[j])) {
-            } else {
-                if (nan_missing || data[j] != missing) {
-                    mat.row_data_[mat.row_ptr_[i] + matj] = RowBatch::Entry(j, data[j]);
-                    ++matj;
-                }
-            }
-        }
+        offset_vec.push_back(mat.page_.data.Size());
     }
 
-    mat.info.num_nonzero = mat.row_data_.size();
+    mat.info.num_col_ = ncol;
+    mat.info.num_row_ = nrow;
+    mat.info.num_nonzero_ = mat.page_.data.Size();
     *out = DMatrix::Create(std::move(source));
-
     return 0;
 }
 
@@ -777,33 +768,50 @@ static void gxgboost_configure_tree(std::vector<std::pair<std::string, std::stri
     cfg.push_back(std::make_pair("colsample_bylevel", convert_arg<>(params->colsample_bylevel)));
     cfg.push_back(std::make_pair("lambda", convert_arg<int>(params->lambda)));
     cfg.push_back(std::make_pair("alpha", convert_arg<int>(params->alpha)));
-    cfg.push_back(std::make_pair("tree_method", std::string(params->tree_method)));
     cfg.push_back(std::make_pair("sketch_eps", convert_arg<>(params->sketch_eps)));
     cfg.push_back(std::make_pair("scale_pos_weight", convert_arg<>(params->scale_pos_weight)));
-    cfg.push_back(std::make_pair("updater", std::string(params->updater)));
     cfg.push_back(std::make_pair("refresh_leaf", convert_arg<int>(params->refresh_leaf)));
-    cfg.push_back(std::make_pair("process_type", std::string(params->process_type)));
-    cfg.push_back(std::make_pair("grow_policy", std::string(params->grow_policy)));
     cfg.push_back(std::make_pair("max_leaves", convert_arg<int>(params->max_leaves)));
     cfg.push_back(std::make_pair("max_bin", convert_arg<int>(params->max_bin)));
-    cfg.push_back(std::make_pair("predictor", std::string(params->predictor)));
+
+
+    if (strlen(params->tree_method))
+        cfg.push_back(std::make_pair("tree_method", std::string(params->tree_method)));
+
+    if (strlen(params->updater))
+        cfg.push_back(std::make_pair("updater", std::string(params->updater)));
+
+    if (strlen(params->process_type))
+        cfg.push_back(std::make_pair("process_type", std::string(params->process_type)));
+
+    if (strlen(params->grow_policy))
+        cfg.push_back(std::make_pair("grow_policy", std::string(params->grow_policy)));
+
+    if (strlen(params->predictor))
+        cfg.push_back(std::make_pair("predictor", std::string(params->predictor)));
 }
 
 static void gxgboost_configure_dart(std::vector<std::pair<std::string, std::string> > &cfg, struct DartBoosterTrainParams *params)
 {
     gxgboost_configure_tree(cfg, &params->tree);
-    cfg.push_back(std::make_pair("sample_type", std::string(params->sample_type)));
-    cfg.push_back(std::make_pair("normalize_type", std::string(params->normalize_type)));
     cfg.push_back(std::make_pair("rate_drop", convert_arg<>(params->rate_drop)));
     cfg.push_back(std::make_pair("one_drop", convert_arg<int>(params->one_drop)));
     cfg.push_back(std::make_pair("skip_drop", convert_arg<>(params->skip_drop)));
+
+    if (strlen(params->sample_type))
+        cfg.push_back(std::make_pair("sample_type", std::string(params->sample_type)));
+
+    if (strlen(params->normalize_type))
+        cfg.push_back(std::make_pair("normalize_type", std::string(params->normalize_type)));
 }
 
 static void gxgboost_configure_linear(std::vector<std::pair<std::string, std::string> > &cfg, struct LinearBoosterTrainParams *params)
 {
     cfg.push_back(std::make_pair("lambda", convert_arg<int>(params->lambda)));
     cfg.push_back(std::make_pair("alpha", convert_arg<int>(params->alpha)));
-    cfg.push_back(std::make_pair("updater", std::string(params->updater)));
+
+    if (strlen(params->updater))
+        cfg.push_back(std::make_pair("updater", std::string(params->updater)));
 }
 
 /**
@@ -815,7 +823,7 @@ static void gxgboost_configure_linear(std::vector<std::pair<std::string, std::st
 static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg, struct BoosterTrainInput *booster)
 {
     std::shared_ptr<DMatrix> dtrain(gxgboost_create_data(&booster->input));
-    dtrain->info().SetInfo("label", booster->labels, kDouble, static_cast<size_t>(*booster->input.rows));
+    dtrain->Info().SetInfo("label", booster->labels, kDouble, static_cast<size_t>(*booster->input.rows));
 
     std::vector<std::shared_ptr<DMatrix> > cache_mats;
     cache_mats.emplace_back(dtrain);
@@ -827,7 +835,7 @@ static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg
 
     if (objective == std::string("multi:softmax") || objective == std::string("multi:softprob")) {
         std::vector<bst_float> num_class;
-        std::unique_copy(dtrain->info().labels.cbegin(), dtrain->info().labels.cend(), std::back_inserter(num_class));
+        std::unique_copy(dtrain->Info().labels_.HostVector().cbegin(), dtrain->Info().labels_.HostVector().cend(), std::back_inserter(num_class));
         cfg.push_back(std::make_pair("num_class", std::to_string(num_class.size())));
     }
 
@@ -922,7 +930,7 @@ extern "C" GXGBOOST_EXPORT int gxgboost_predict(struct BoosterPredict *input) {
                      static_cast<bool>(*input->params.approx_contribs != 0.0),
                      static_cast<bool>(*input->params.pred_interactions != 0.0));
 
-    std::vector<bst_float> &preds_data = preds.data_h();
+    std::vector<bst_float> &preds_data = preds.HostVector();
     if (!preds_data.empty()) {
         double *dp = reinterpret_cast<double*>(malloc(preds_data.size() * sizeof(double)));
 

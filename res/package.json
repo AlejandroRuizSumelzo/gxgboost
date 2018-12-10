@@ -9,7 +9,7 @@
         "gxgboost.dll"
     ],
     "keywords": [
-        "boosting", "random forest"
+        "boosting", "decision forest"
     ],
     "license": "Apache 2.0",
     "name": "gxgboost",
@@ -18,5 +18,5 @@
         "gxgboost.sdf",
         "gxgboost.src"
     ],
-    "version": "0.2.0"
+    "version": "0.3.0"
 }

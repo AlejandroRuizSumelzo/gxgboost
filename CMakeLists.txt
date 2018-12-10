@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.2)
 
-project(gxgboost VERSION 0.1.0 LANGUAGES CXX)
+project(gxgboost VERSION 0.3.0 LANGUAGES CXX)
 
 include(GenerateExportHeader)
 
@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
 
 add_definitions(
     -DDMLC_LOG_BEFORE_THROW=0
@@ -22,6 +22,8 @@ if(NOT WIN32)
         -DDMLC_LOG_CUSTOMIZE=1
         -DRABIT_CUSTOMIZE_MSG_
         -DXGBOOST_CUSTOMIZE_LOGGER=1
+        -DXGBOOST_STRICT_R_MODE=1
+        -DXGBOOST_CUSTOMIZE_GLOBAL_PRNG=0
     )
 endif()
 
@@ -40,9 +42,9 @@ include_directories (
     xgboost/rabit/include
 )
 
-if(OpenMP_CXX_FOUND OR OPENMP_FOUND)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
+#if(OpenMP_CXX_FOUND OR OPENMP_FOUND)
+#  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+#endif()
 if(MSVC)
   # Multithreaded compilation
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
@@ -61,7 +63,8 @@ add_library(gxgboost SHARED
 )
 target_compile_definitions(gxgboost PRIVATE gxgboost_EXPORTS)
 target_include_directories(gxgboost PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<INSTALL_INTERFACE:include/gxgboost>)
-target_link_libraries(gxgboost PRIVATE dmlccore)
+#target_link_libraries(gxgboost PRIVATE dmlc)
+target_link_libraries(gxgboost PUBLIC OpenMP::OpenMP_CXX)
 
 generate_export_header(gxgboost BASE_NAME GXGBOOST)
 
