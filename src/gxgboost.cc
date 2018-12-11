@@ -22,17 +22,7 @@
 #include <algorithm>
 #include "./common/sync.h"
 #include "./common/config.h"
-
-#ifdef XGBOOST_STRICT_R_MODE
-#define XGBOOST_STRCT_R_MODE_OLD XGBOOST_STRICT_R_MODE
-#undef XGBOOST_STRICT_R_MODE
-#define XGBOOST_STRICT_R_MODE 0
 #include "./common/math.h"
-#undef XGBOOST_STRICT_R_MODE
-#define XGBOOST_STRICT_R_MODE XGBOOST_STRCT_R_MODE_OLD
-#else
-#include "./common/math.h"
-#endif
 #include "./common/io.h"
 #include "./data/simple_csr_source.h"
 #include "gxgboost_export.h"
@@ -62,39 +52,24 @@ inline void _gs_print(const char *fmt, ...) {
  * \brief handling of Assert error, caused by inappropriate input
  * \param msg error message
  */
-inline void HandleAssertError(const char *msg) {
+void HandleAssertError(const char *msg) {
     _gs_print("AssertError:%s\n", msg);
 }
 /*!
  * \brief handling of Check error, caused by inappropriate input
  * \param msg error message
  */
-inline void HandleCheckError(const char *msg) {
+void HandleCheckError(const char *msg) {
     _gs_print("%s\n", msg);
 }
-inline void HandlePrint(const char *msg) {
+void HandlePrint(const char *msg) {
     _gs_print("%s\n", msg);
 }
-inline void HandleLogPrint(const char *msg) {
+void HandleLogPrint(const char *msg) {
     _gs_print("%s\n", msg);
 }
 }
 }
-
-namespace dmlc {
-void CustomLogMessage::Log(const std::string& msg) {
-    rabit::utils::_gs_print("%s\n", msg.c_str());
-}
-}  // namespace dmlc
-
-namespace xgboost {
-ConsoleLogger::~ConsoleLogger() {
-    dmlc::CustomLogMessage::Log(log_stream_.str());
-}
-TrackerLogger::~TrackerLogger() {
-    dmlc::CustomLogMessage::Log(log_stream_.str());
-}
-}  // namespace xgboost
 #endif
 
 namespace xgboost {
@@ -822,6 +797,9 @@ static void gxgboost_configure_linear(std::vector<std::pair<std::string, std::st
  */
 static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg, struct BoosterTrainInput *booster)
 {
+    LogCallbackRegistry* registry = LogCallbackRegistryStore::Get();
+    registry->Register([](const char* msg) { rabit::utils::_gs_print("%s\n", msg); });
+
     std::shared_ptr<DMatrix> dtrain(gxgboost_create_data(&booster->input));
     dtrain->Info().SetInfo("label", booster->labels, kDouble, static_cast<size_t>(*booster->input.rows));
 

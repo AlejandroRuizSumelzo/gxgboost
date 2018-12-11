@@ -22,8 +22,6 @@ if(NOT WIN32)
         -DDMLC_LOG_CUSTOMIZE=1
         -DRABIT_CUSTOMIZE_MSG_
         -DXGBOOST_CUSTOMIZE_LOGGER=1
-        -DXGBOOST_STRICT_R_MODE=1
-        -DXGBOOST_CUSTOMIZE_GLOBAL_PRNG=0
     )
 endif()
 
@@ -53,6 +51,10 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_MWAITXINTRIN_H_INCLUDED -D_FORCE_INLINES")
   # Performance
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unknown-pragmas -funroll-loops")
+
+  if(APPLE)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-U,_ProgramOutput")
+  endif()
 endif()
 
 add_library(gxgboost SHARED
@@ -63,7 +65,7 @@ add_library(gxgboost SHARED
 )
 target_compile_definitions(gxgboost PRIVATE gxgboost_EXPORTS)
 target_include_directories(gxgboost PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src> $<INSTALL_INTERFACE:include/gxgboost>)
-#target_link_libraries(gxgboost PRIVATE dmlc)
+target_link_libraries(gxgboost PRIVATE dmlc)
 target_link_libraries(gxgboost PUBLIC OpenMP::OpenMP_CXX)
 
 generate_export_header(gxgboost BASE_NAME GXGBOOST)
