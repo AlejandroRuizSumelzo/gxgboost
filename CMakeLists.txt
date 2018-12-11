@@ -68,6 +68,10 @@ target_include_directories(gxgboost PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOU
 target_link_libraries(gxgboost PRIVATE dmlc)
 target_link_libraries(gxgboost PUBLIC OpenMP::OpenMP_CXX)
 
+if(WIN32)
+    target_link_libraries(gxgboost PRIVATE rabit)
+endif()
+
 generate_export_header(gxgboost BASE_NAME GXGBOOST)
 
 set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/package")

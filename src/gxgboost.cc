@@ -797,8 +797,10 @@ static void gxgboost_configure_linear(std::vector<std::pair<std::string, std::st
  */
 static int gxgboost_train(std::vector<std::pair<std::string, std::string> > &cfg, struct BoosterTrainInput *booster)
 {
+#ifndef _WIN32
     LogCallbackRegistry* registry = LogCallbackRegistryStore::Get();
     registry->Register([](const char* msg) { rabit::utils::_gs_print("%s\n", msg); });
+#endif
 
     std::shared_ptr<DMatrix> dtrain(gxgboost_create_data(&booster->input));
     dtrain->Info().SetInfo("label", booster->labels, kDouble, static_cast<size_t>(*booster->input.rows));
