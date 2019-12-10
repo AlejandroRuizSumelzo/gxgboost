@@ -13,6 +13,9 @@ $ mkdir build
 $ cd build
 ```
 
+### GAUSS Package manager
+The GAUSS **gxgboost** library can be installed and updated directly in GAUSS using the [GAUSS package manager](https://www.aptech.com/blog/gauss-package-manager-basics/).
+
 ### Windows
 ```bash
 $ cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release ..
